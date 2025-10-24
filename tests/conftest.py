@@ -1,28 +1,25 @@
 # -*- coding: utf-8 -*-
-# Copyright (c) 2018 Luke Mergner
+# ©2018 Luke Mergner
+# ©2025 Brendan McCollam
 
 import os
-from subprocess import CompletedProcess, run
-from urllib.parse import urlparse
-
 import pytest
+from testcontainers.postgres import PostgresContainer
+
+pytest_plugins = ['pytester']
+
+_PG_TAG = os.environ.get('PGTAP_PG_IMAGE_TAG', '18')
 
 
-@pytest.fixture(scope="session")
+def assert_tap_outcomes(result, *, passed: int = 0, failed: int = 0):
+    if failed:
+        result.stdout.fnmatch_lines([f'*{failed} failed*'])
+    elif passed:
+        result.stdout.fnmatch_lines([f'*{passed} subtest*passed*'])
+
+
+@pytest.fixture(scope='session')
 def database():
-    return os.environ.get("DATABASE_URL")
-
-
-@pytest.fixture
-def subprocess(mocker):
-    """ Mock the subprocess and make sure it returns a value """
-
-    def with_return_value(value: int = 0, stdout: str = ""):
-        mock = mocker.patch(
-            "subprocess.run", return_value=CompletedProcess(None, returncode=0)
-        )
-        mock.returncode.return_value = value
-        mock.stdout = stdout
-        return mock
-
-    return with_return_value
+    image = f'docker.io/pshaddel/postgres-pgtap:{_PG_TAG}'
+    with PostgresContainer(image, driver=None) as postgres:
+        yield postgres

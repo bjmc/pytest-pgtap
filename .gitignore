@@ -82,3 +82,5 @@ tests/perf.json
 tappy
 docker-pgtap
 .python-version
+# Library doesn't need to lock specific versions
+uv.lock

@@ -1,0 +1,105 @@
+[build-system]
+requires = ["hatchling>=1.0", "wheel"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pytest-pgtap"
+version = "0.2.0"
+description = "Pytest plugin for running pgTAP tests"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT license" }
+authors = [
+    { name = "Luke Mergner", email = "lmergner@gmail.com" },
+    { name = "Brendan McCollam", email = "brendan@mccoll.am" }
+]
+keywords = ["postgresql", "pgTAP", "pytest", "py.test"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Framework :: Pytest",
+    "Topic :: Software Development :: Testing",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+    "psycopg[binary]>=3.2.0",
+    "tap-py>=3.1",
+]
+
+[project.optional-dependencies]
+subtests = ["pytest-subtests>=0.15.0"]
+
+[tool.hatch.envs.dev]
+description = "Development environment"
+dependencies = [
+  "pytest-cov>=4.1.0",
+  "pytest-mock>=3.11.1",
+  "ruff>=0.14.2",
+  "testcontainers[postgres]>=3.7.1",
+  "ty>=0.0.31",
+]
+scripts.test = "pytest tests/"
+scripts.lint = "ruff check && ty check"
+scripts.format = "ruff format && ruff check --fix"
+scripts.clean = "py3clean tests/ pytest_pgtap/"
+
+[tool.hatch.envs.default]
+installer = "uv"
+
+# ---------------------------------------------------------------------------
+# Multi-version test matrix
+# ---------------------------------------------------------------------------
+# Usage:
+#   hatch run test:run                  # run all combinations
+#   hatch -e test.py3.13-pytest9-pg18 run   # single combination
+#   hatch run test:run -- -k test_marker     # pass extra args
+
+[tool.hatch.envs.test]
+dependencies = [
+  "pytest-mock",
+  "testcontainers[postgres]",
+]
+scripts.run = "pytest tests/ -v {args}"
+
+[tool.hatch.envs.test.overrides]
+matrix.pytest_ver.dependencies = [
+  { value = "pytest>=8.4,<9", if = ["8"] },
+  { value = "pytest-subtests>=0.15.0", if = ["8"] },
+  { value = "pytest>=9,<10", if = ["9"] },
+]
+matrix.pg.env-vars = [
+  { key = "PGTAP_PG_IMAGE_TAG", value = "17", if = ["17"] },
+  { key = "PGTAP_PG_IMAGE_TAG", value = "18", if = ["18"] },
+]
+
+[[tool.hatch.envs.test.matrix]]
+python = ["3.11", "3.12", "3.13"]
+pytest_ver = ["8", "9"]
+pg = ["17", "18"]
+
+[project.urls]
+Homepage = "https://github.com/lmergner/pytest-pgtap"
+
+[project.entry-points."pytest11"]
+pgtap = "pytest_pgtap.plugin"
+
+[tool.setuptools.packages.find]
+include = ["pytest_pgtap"]
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict"
+testpaths = ["tests"]
+norecursedirs = [".git", ".tox", ".env", "dist", "build", "migrations", "tests/sql-tests"]
+python_files = ["test_*.py"]
+
+[tool.ruff]
+line-length = 100
+indent-width = 4
+
+[tool.ruff.format]
+quote-style = "single"
