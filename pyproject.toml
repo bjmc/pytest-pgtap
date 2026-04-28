@@ -25,6 +25,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
     "psycopg[binary]>=3.2.0",
@@ -68,14 +69,6 @@ scripts.clean = "rm -rf {root}/docs/build"
 [tool.hatch.envs.default]
 installer = "uv"
 
-# ---------------------------------------------------------------------------
-# Multi-version test matrix
-# ---------------------------------------------------------------------------
-# Usage:
-#   hatch run test:run                  # run all combinations
-#   hatch -e test.py3.13-pytest9-pg18 run   # single combination
-#   hatch run test:run -- -k test_marker     # pass extra args
-
 [tool.hatch.envs.test]
 dependencies = [
   "pytest-mock",
@@ -95,7 +88,7 @@ matrix.pg.env-vars = [
 ]
 
 [[tool.hatch.envs.test.matrix]]
-python = ["3.10", "3.11", "3.12", "3.13"]
+python = ["3.10", "3.11", "3.12", "3.13", "3.14"]
 pytest_ver = ["8", "9"]
 pg = ["17", "18"]
 
