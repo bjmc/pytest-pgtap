@@ -10,8 +10,8 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT license" }
 authors = [
+    { name = "Brendan McCollam", email = "brendan+pytest-pgtap@mccoll.am" },
     { name = "Luke Mergner", email = "lmergner@gmail.com" },
-    { name = "Brendan McCollam", email = "brendan@mccoll.am" }
 ]
 keywords = ["postgresql", "pgTAP", "pytest", "py.test"]
 classifiers = [
@@ -33,9 +33,10 @@ dependencies = [
 
 [project.optional-dependencies]
 subtests = ["pytest-subtests>=0.15.0"]
-docs = [
-  "sphinx",
-  "myst-parser",
+
+[tool.hatch.build]
+packages = [
+  "pytest_pgtap",
 ]
 
 [tool.hatch.envs.dev]
@@ -45,6 +46,7 @@ dependencies = [
   "pytest-mock>=3.11.1",
   "ruff>=0.14.2",
   "testcontainers[postgres]>=3.7.1",
+  "twine>=6.2.0",
   "ty>=0.0.31",
 ]
 scripts.test = "pytest tests/"
