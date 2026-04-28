@@ -1,10 +1,11 @@
 # pytest-pgtap documentation build configuration
 
-import tomllib  # ty: ignore[unresolved-import]
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).parents[2]
-with open(PROJECT_ROOT / 'pyproject.toml', 'rb') as f:
+import tomllib  # ty: ignore[unresolved-import]
+
+PYPROJECT_FILE = Path(__file__).parents[2] / 'pyproject.toml'
+with PYPROJECT_FILE.open('rb') as f:
     pyproject = tomllib.load(f)
 
 version = pyproject['project']['version']

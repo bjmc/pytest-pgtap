@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Tests for the pytest.mark.pgtap inline Python mode
 
 from .conftest import assert_tap_outcomes

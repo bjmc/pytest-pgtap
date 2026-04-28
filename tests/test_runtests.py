@@ -1,19 +1,24 @@
 from pathlib import Path
-from psycopg import connect
-from psycopg.abc import Query
+from typing import TYPE_CHECKING, cast
+
 import pytest
-from typing import cast
+from psycopg import connect
 
 from .conftest import assert_tap_outcomes
+
+if TYPE_CHECKING:
+    from psycopg.abc import Query
 
 FIXTURES_DIR = Path(__file__).parent / 'sql'
 
 
 @pytest.fixture
 def db_setup(database):
-    with open(FIXTURES_DIR / 'runtests_fixture.sql') as fh:
-        with connect(database.get_connection_url()) as conn:
-            conn.execute(cast(Query, fh.read()))
+    with (
+        (FIXTURES_DIR / 'runtests_fixture.sql').open() as fh,
+        connect(database.get_connection_url()) as conn,
+    ):
+        conn.execute(cast('Query', fh.read()))
     return database
 
 

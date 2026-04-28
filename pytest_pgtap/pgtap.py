@@ -4,10 +4,10 @@ core functionality for pgTap python implementation
 
 from typing import Any
 
-from psycopg.rows import scalar_row
-from psycopg import Connection, sql, Cursor
+from psycopg import Connection, Cursor, sql
 from psycopg.abc import Query
 from psycopg.pq import ExecStatus
+from psycopg.rows import scalar_row
 
 
 class Runner:
@@ -64,7 +64,7 @@ def wrap_plan(*lines: str) -> str:
     return '\n'.join(
         [
             'BEGIN;',
-            'SELECT plan(%s);' % len(lines),
+            f'SELECT plan({len(lines)});',
             *lines,
             'SELECT * FROM finish();',
             'ROLLBACK;',

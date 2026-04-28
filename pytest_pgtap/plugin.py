@@ -2,19 +2,18 @@
 pgTAP plugin for pytest
 """
 
-from contextlib import nullcontext
 import logging
 import os
-import pytest
-from pytest import Config, StashKey, UsageError
-import psycopg
-from psycopg.abc import Query
-from psycopg import OperationalError, ProgrammingError
-from tap.parser import Parser
-from tap.line import Result, Bail, Plan
+from contextlib import nullcontext
 from types import SimpleNamespace
+from typing import TYPE_CHECKING, Any, cast
 
-from typing import Any, cast
+import psycopg
+import pytest
+from psycopg import OperationalError, ProgrammingError
+from pytest import Config, StashKey, UsageError
+from tap.line import Bail, Plan, Result
+from tap.parser import Parser
 
 # Use native pytest.Subtests (9.0+), fall back to pytest-subtests plugin
 try:
@@ -30,6 +29,8 @@ except ImportError:
 
 from .pgtap import Runner, wrap_plan
 
+if TYPE_CHECKING:
+    from psycopg.abc import Query
 
 logger = logging.getLogger(__name__)
 
@@ -79,11 +80,8 @@ def get_runner(config: Config) -> Runner | None:
 def _make_subtests(item: pytest.Item) -> Subtests:
     """Build a SubTests instance without the fixture machinery."""
     capman = item.config.pluginmanager.get_plugin('capturemanager')
-    if capman is not None:
-        suspend_capture_ctx = capman.global_and_fixture_disabled
-    else:
-        suspend_capture_ctx = nullcontext
-    fake_request = cast(Any, SimpleNamespace(node=item, config=item.config, session=item.session))
+    suspend_capture_ctx = capman.global_and_fixture_disabled if capman is not None else nullcontext
+    fake_request = cast('Any', SimpleNamespace(node=item, config=item.config, session=item.session))
     return Subtests(item.ihook, suspend_capture_ctx, fake_request)  # pyright: ignore
 
 
@@ -134,7 +132,7 @@ def _normalize_sql_lines(result: object) -> list[str]:
     if isinstance(result, str):
         return [result]
     if isinstance(result, list) and all(isinstance(line, str) for line in result):
-        return cast(list[str], result)
+        return cast('list[str]', result)
     raise TypeError('pytest.mark.pgtap tests must return a SQL string or list[str]')
 
 
@@ -151,6 +149,7 @@ def pytest_collect_file(parent, file_path):
     if file_path.suffix == '.sql' and file_path.name.startswith('test'):
         logger.debug('Collected {} in {}', file_path, parent)
         return PgTapFile.from_parent(parent, path=file_path)
+    return None
 
 
 def pytest_collection_modifyitems(session, config, items):
@@ -182,7 +181,7 @@ def pytest_runtest_call(item: pytest.Item):
 
     try:
         sql_lines = _normalize_sql_lines(item.obj())
-        query = cast(Query, wrap_plan(*sql_lines))
+        query = cast('Query', wrap_plan(*sql_lines))
         tap_lines = runner.run(query)
         item.obj = lambda **kw: _report_tap(item, tap_lines, item.name)
     except (psycopg.Error, ValueError, TypeError) as err:
@@ -216,8 +215,8 @@ def pytest_report_header(config):
     """pytest hook: return a string to be displayed as header info for terminal reporting"""
     return '\n'.join(
         [
-            'pgTap Connection: {0}'.format(config.getoption('pgtap_uri')),
-            'pgTap Schema: {0}'.format(
+            'pgTap Connection: {}'.format(config.getoption('pgtap_uri')),
+            'pgTap Schema: {}'.format(
                 config.getoption('pgtap_schema', default='runtests() disabled')
             ),
         ]
@@ -239,7 +238,7 @@ class PgTapItem(pytest.Item):
         runner = get_runner(self.config)
         if runner is None:
             pytest.skip(f'PgTAP tests {self.path.name} skipped: no Postgres connection')
-        tap_lines = runner.run(cast(Query, self.path.read_text()))
+        tap_lines = runner.run(cast('Query', self.path.read_text()))
         _report_tap(self, tap_lines, self.path.name)
 
     def reportinfo(self):
