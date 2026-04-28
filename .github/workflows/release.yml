@@ -10,7 +10,19 @@ jobs:
     name: Build distribution
     runs-on: ubuntu-latest
 
+    outputs:
+      is-stable: ${{ steps.check-tag.outputs.stable }}
+
     steps:
+      - name: Classify tag # Decides if this is a prerelease tag or a release that will go to PyPI.
+        id: check-tag
+        run: |
+          if [[ "${{ github.ref_name }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "stable=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "stable=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Check out code
         uses: actions/checkout@v4
 
@@ -50,23 +62,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # Mark as pre-release if the tag contains anything after the patch number
-          if [[ "${{ github.ref_name }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            gh release create "${{ github.ref_name }}" \
-              --generate-notes \
-              dist/*
-          else
-            gh release create "${{ github.ref_name }}" \
-              --generate-notes \
-              --prerelease \
-              dist/*
-          fi
+          gh release create "${{ github.ref_name }}" \
+            --generate-notes \
+            ${{ needs.build.outputs.is-stable != 'true' && '--prerelease' || '' }} \
+            dist/*
 
   publish-pypi:
     name: Publish to PyPI
     needs: build
-    # Only run on strict vX.Y.Z tags — no pre-release suffixes
-    if: ${{ github.ref_name =~ '^v[0-9]+\.[0-9]+\.[0-9]+$' }}
+    if: needs.build.outputs.is-stable == 'true'
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
