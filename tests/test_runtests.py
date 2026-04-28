@@ -6,12 +6,12 @@ from typing import cast
 
 from .conftest import assert_tap_outcomes
 
-HERE = Path(__file__).parent
+FIXTURES_DIR = Path(__file__).parent / 'sql'
 
 
 @pytest.fixture
 def db_setup(database):
-    with open(HERE / 'runtests_fixture.sql') as fh:
+    with open(FIXTURES_DIR / 'runtests_fixture.sql') as fh:
         with connect(database.get_connection_url()) as conn:
             conn.execute(cast(Query, fh.read()))
     return database
