@@ -32,23 +32,17 @@ pytest-pgtap does not automatically install pgTAP. [Install it in your Postgres 
 
 ## Installation
 
-Install from source:
+Install from [PyPI](https://pypi.org/project/pytest-pgtap/):
 
 ```bash
-pip install -e .
-```
-
-Or directly from GitHub:
-
-```bash
-pip install -U git+https://github.com/lmergner/pytest-pgtap.git
+pip install pytest-pgtap
 ```
 
 **Note:** To report PgTAP results, this plugin relies on the [Pytest subtests](https://docs.pytest.org/en/stable/how-to/subtests.html) feature introduced in Pytest v9.
 If you are using Pytest 8, you'll need to install the optional `subtests` dependency, that adds [pytest-subtests](https://pypi.org/project/pytest-subtests/) as an extra plugin for backwards-compatibility.
 
 ```bash
-pip install -U "git+https://github.com/lmergner/pytest-pgtap.git#egg=pytest-pgtap[subtests]"
+pip install pytest-pgtap[subtests]
 ```
 
 ## Usage
@@ -61,7 +55,7 @@ Set a connection URI explicitly:
 pytest --pgtap-uri postgresql://user:pass@host:5432/dbname
 ```
 
-Or rely on standard libpq environment variables (`PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`).
+Or rely on [standard libpq environment variables](https://www.postgresql.org/docs/current/libpq-envars.html) (`PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`).
 
 ### Mode 1: SQL file tests
 
