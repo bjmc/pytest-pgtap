@@ -10,8 +10,8 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT license" }
 authors = [
+    { name = "Brendan McCollam", email = "brendan+pytest-pgtap@mccoll.am" },
     { name = "Luke Mergner", email = "lmergner@gmail.com" },
-    { name = "Brendan McCollam", email = "brendan@mccoll.am" }
 ]
 keywords = ["postgresql", "pgTAP", "pytest", "py.test"]
 classifiers = [
@@ -25,6 +25,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
     "psycopg[binary]>=3.2.0",
@@ -33,9 +34,10 @@ dependencies = [
 
 [project.optional-dependencies]
 subtests = ["pytest-subtests>=0.15.0"]
-docs = [
-  "sphinx",
-  "myst-parser",
+
+[tool.hatch.build]
+packages = [
+  "pytest_pgtap",
 ]
 
 [tool.hatch.envs.dev]
@@ -45,6 +47,7 @@ dependencies = [
   "pytest-mock>=3.11.1",
   "ruff>=0.14.2",
   "testcontainers[postgres]>=3.7.1",
+  "twine>=6.2.0",
   "ty>=0.0.31",
 ]
 scripts.test = "pytest tests/"
@@ -66,14 +69,6 @@ scripts.clean = "rm -rf {root}/docs/build"
 [tool.hatch.envs.default]
 installer = "uv"
 
-# ---------------------------------------------------------------------------
-# Multi-version test matrix
-# ---------------------------------------------------------------------------
-# Usage:
-#   hatch run test:run                  # run all combinations
-#   hatch -e test.py3.13-pytest9-pg18 run   # single combination
-#   hatch run test:run -- -k test_marker     # pass extra args
-
 [tool.hatch.envs.test]
 dependencies = [
   "pytest-mock",
@@ -93,7 +88,7 @@ matrix.pg.env-vars = [
 ]
 
 [[tool.hatch.envs.test.matrix]]
-python = ["3.10", "3.11", "3.12", "3.13"]
+python = ["3.10", "3.11", "3.12", "3.13", "3.14"]
 pytest_ver = ["8", "9"]
 pg = ["17", "18"]
 

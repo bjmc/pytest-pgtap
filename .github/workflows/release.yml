@@ -50,6 +50,34 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${{ github.ref_name }}" \
-            --generate-notes \
-            dist/*
+          # Mark as pre-release if the tag contains anything after the patch number
+          if [[ "${{ github.ref_name }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            gh release create "${{ github.ref_name }}" \
+              --generate-notes \
+              dist/*
+          else
+            gh release create "${{ github.ref_name }}" \
+              --generate-notes \
+              --prerelease \
+              dist/*
+          fi
+
+  publish-pypi:
+    name: Publish to PyPI
+    needs: build
+    # Only run on strict vX.Y.Z tags — no pre-release suffixes
+    if: ${{ github.ref_name =~ '^v[0-9]+\.[0-9]+\.[0-9]+$' }}
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write  # Required for OIDC trusted publishing
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

@@ -133,6 +133,14 @@ hatch run dev:test
 hatch run docs:build
 ```
 
+Similar to `tox`, Hatch supports multi-version [matrix testing](https://hatch.pypa.io/1.13/config/environment/advanced/#matrix) so we can verify this library works across different versions of Python, Pytest and Postgres.
+
+```bash
+hatch run test:run  # run all combinations
+hatch -e test.py3.13-pytest9-pg18 run  # single combination
+hatch run test:run -- -x  # pass extra args to pytest
+```
+
 The test suite uses [testcontainers](https://testcontainers-python.readthedocs.io/) to spin up Postgres. You'll need [Docker](https://www.docker.com) or some other [OCI runtime](https://github.com/opencontainers/runtime-spec).
 
 ### Using Podman instead of Docker
