@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING, Any, cast
 
 import psycopg
 import pytest
+from _pytest.fixtures import TopRequest
+from _pytest.python import Function
 from psycopg import OperationalError, ProgrammingError
 from pytest import StashKey, UsageError
 from tap.line import Bail, Plan, Result
@@ -250,14 +252,10 @@ class _FixtureItem(pytest.Item):
     """
 
     def setup(self):
-        from _pytest.fixtures import TopRequest
-
         self.funcargs: dict[str, object] = {}
-        self._fixtureinfo = self.session._fixturemanager.getfixtureinfo(
-            self, func=None, cls=None
-        )
+        self._fixtureinfo = self.session._fixturemanager.getfixtureinfo(self, func=None, cls=None)
         self.fixturenames = self._fixtureinfo.names_closure
-        self._request = TopRequest(self, _ispytest=True)  # type: ignore[arg-type]
+        self._request = TopRequest(cast(Function, self), _ispytest=True)
         self._request._fillfixtures()
 
 
