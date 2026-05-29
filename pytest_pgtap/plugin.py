@@ -162,10 +162,6 @@ def pytest_collect_file(parent, file_path):
 
 
 def pytest_collection_modifyitems(session, config, items):
-    for item in items:
-        if item.get_closest_marker('pgtap') is not None:
-            item.fixturenames.append('_pgtap_runner')
-
     schema = config.getoption('pgtap_schema')
     if schema:
         pattern = config.getoption('pgtap_match')
@@ -186,7 +182,7 @@ def pytest_runtest_call(item: pytest.Item):
         yield
         return
 
-    runner = item.funcargs.get('_pgtap_runner')
+    runner = item._request.getfixturevalue('_pgtap_runner')
     if not isinstance(runner, Runner):
         item.obj = lambda **kw: pytest.skip('pgTAP test skipped: no Postgres connection')
         yield
@@ -250,12 +246,8 @@ class _FixtureItem(pytest.Item):
     """
 
     def setup(self):
-        self.funcargs: dict[str, object] = {}
         self._fixtureinfo = self.session._fixturemanager.getfixtureinfo(self, func=None, cls=None)
-        self.fixturenames = self._fixtureinfo.names_closure
-        self.fixturenames.append('_pgtap_runner')
         self._request = TopRequest(cast(Function, self), _ispytest=True)
-        self._request._fillfixtures()
 
 
 class PgTapFile(pytest.File):
@@ -265,7 +257,7 @@ class PgTapFile(pytest.File):
 
 class PgTapItem(_FixtureItem):
     def runtest(self):
-        runner = self.funcargs.get('_pgtap_runner')
+        runner = self._request.getfixturevalue('_pgtap_runner')
         if not isinstance(runner, Runner):
             pytest.skip(f'PgTAP tests {self.path.name} skipped: no Postgres connection')
         tap_lines = runner.run(cast('Query', self.path.read_text()))
@@ -287,7 +279,7 @@ class PgTapRuntestsItem(_FixtureItem):
         self.pattern = pattern
 
     def runtest(self):
-        runner = self.funcargs.get('_pgtap_runner')
+        runner = self._request.getfixturevalue('_pgtap_runner')
         if not isinstance(runner, Runner):
             pytest.skip('pgTAP runtests skipped: no Postgres connection')
         tap_lines = runner.runtests(schema=self.schema, pattern=self.pattern)
