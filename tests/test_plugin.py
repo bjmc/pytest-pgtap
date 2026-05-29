@@ -21,7 +21,7 @@ def test_pgtap_fixture(pgtap):
 
 
 def test_pgtap_connection_fixture_override(pytester, database):
-    """A conftest that overrides pgtap_connection supplies the connection to all modes."""
+    """A conftest that overrides pgtap_connection supplies the connection to our plugin."""
     pytester.makeconftest(
         dedent(f"""
         import psycopg
