@@ -49,13 +49,25 @@ pip install pytest-pgtap[subtests]
 
 ### Connection
 
-Set a connection URI explicitly:
+- Set a connection URI explicitly:
 
 ```bash
 pytest --pgtap-uri postgresql://user:pass@host:5432/dbname
 ```
 
-Or rely on [standard libpq environment variables](https://www.postgresql.org/docs/current/libpq-envars.html) (`PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`).
+- Or rely on [standard libpq environment variables](https://www.postgresql.org/docs/current/libpq-envars.html) (`PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`).
+
+- Or override the `pgtap_connection` fixture in your `conftest.py` to supply a connection directly — useful when your database is itself managed by a fixture (e.g. [testcontainers](https://testcontainers-python.readthedocs.io/)):
+
+```python
+import pytest
+import psycopg
+
+@pytest.fixture(scope='session')
+def pgtap_connection(postgres):  # postgres is your own session-scoped fixture
+    with psycopg.connect(postgres.get_connection_url()) as conn:
+        yield conn
+```
 
 ### Mode 1: SQL file tests
 
