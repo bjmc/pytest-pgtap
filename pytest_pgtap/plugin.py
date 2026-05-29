@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any, cast
 import psycopg
 import pytest
 from psycopg import OperationalError, ProgrammingError
-from pytest import Config, StashKey, UsageError
+from pytest import StashKey, UsageError
 from tap.line import Bail, Plan, Result
 from tap.parser import Parser
 
@@ -43,32 +43,45 @@ _runner_key: StashKey[Runner | None] = StashKey()
 
 
 # ---------------------------------------------------------------------------
-# Connection helpers
+# Fixtures
 # ---------------------------------------------------------------------------
 
 
-def get_runner(config: Config) -> Runner | None:
-    if _runner_key in config.stash:
-        return config.stash[_runner_key]
+@pytest.fixture(scope='session')
+def pgtap_connection(request: pytest.FixtureRequest):
+    """Provide the psycopg connection used by pytest-pgtap.
 
+    Override this fixture to supply a connection from an external source
+    (e.g. a testcontainers session fixture) instead of the default CLI /
+    environment-variable based connection. The plugin will not interfere with
+    the lifecycle of a connection it did not create.
+    """
+    config = request.config
     if db_uri := config.getoption('pgtap_uri'):
         try:
             conn = psycopg.connect(db_uri)
         except (OperationalError, ProgrammingError) as err:
             raise UsageError(f'Unable to connect to Postgres: {err}') from err
     else:
-        # Connect relying on env vars
+        # Connect relying on env vars:
         # https://www.postgresql.org/docs/current/libpq-envars.html
         try:
             conn = psycopg.connect()
         except OperationalError as err:
             logger.warning('pytest-pgtap: Unable to connect to Postgres: %s', err)
-            config.stash[_runner_key] = None
-            return None
+            yield None
+            return
+    with conn:
+        yield conn
 
-    runner = Runner(conn)
-    config.stash[_runner_key] = runner
-    config.add_cleanup(runner.close)
+
+@pytest.fixture(scope='session', autouse=True)
+def _pgtap_runner(
+    request: pytest.FixtureRequest,
+    pgtap_connection: psycopg.Connection[Any] | None,
+) -> Runner | None:
+    runner = Runner(pgtap_connection) if pgtap_connection is not None else None
+    request.config.stash[_runner_key] = runner
     return runner
 
 
@@ -173,7 +186,7 @@ def pytest_runtest_call(item: pytest.Item):
         yield
         return
 
-    runner = get_runner(item.config)
+    runner = item.config.stash.get(_runner_key, None)
     if runner is None:
         item.obj = lambda **kw: pytest.skip('pgTAP test skipped: no Postgres connection')
         yield
@@ -228,14 +241,35 @@ def pytest_report_header(config):
 # ---------------------------------------------------------------------------
 
 
+class _FixtureItem(pytest.Item):
+    """Mixin that gives a plain pytest.Item access to the fixture machinery.
+
+    Normally only pytest.Function items participate in fixture setup. This
+    mixin opts in by implementing setup() using internal pytest APIs that have
+    been stable since pytest 7.
+    """
+
+    def setup(self):
+        from _pytest.fixtures import TopRequest
+
+        self.funcargs: dict[str, object] = {}
+        self._fixtureinfo = self.session._fixturemanager.getfixtureinfo(
+            self, func=None, cls=None
+        )
+        self.fixturenames = self._fixtureinfo.names_closure
+        self._request = TopRequest(self, _ispytest=True)  # type: ignore[arg-type]
+        self._request._fillfixtures()
+
+
 class PgTapFile(pytest.File):
     def collect(self):
         yield PgTapItem.from_parent(self, name=self.path.name)
 
 
-class PgTapItem(pytest.Item):
+@pytest.mark.usefixtures('_pgtap_runner')
+class PgTapItem(_FixtureItem):
     def runtest(self):
-        runner = get_runner(self.config)
+        runner = self.config.stash.get(_runner_key, None)
         if runner is None:
             pytest.skip(f'PgTAP tests {self.path.name} skipped: no Postgres connection')
         tap_lines = runner.run(cast('Query', self.path.read_text()))
@@ -250,14 +284,15 @@ class PgTapItem(pytest.Item):
 # ---------------------------------------------------------------------------
 
 
-class PgTapRuntestsItem(pytest.Item):
+@pytest.mark.usefixtures('_pgtap_runner')
+class PgTapRuntestsItem(_FixtureItem):
     def __init__(self, *, schema: str, pattern: str | None = None, **kwargs):
         super().__init__(**kwargs)
         self.schema = schema
         self.pattern = pattern
 
     def runtest(self):
-        runner = get_runner(self.config)
+        runner = self.config.stash.get(_runner_key, None)
         if runner is None:
             pytest.skip('pgTAP runtests skipped: no Postgres connection')
         tap_lines = runner.runtests(schema=self.schema, pattern=self.pattern)
