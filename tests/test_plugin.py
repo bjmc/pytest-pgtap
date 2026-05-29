@@ -1,3 +1,5 @@
+from textwrap import dedent
+
 from .conftest import assert_tap_outcomes
 
 pytest_plugins = ['pytester']
@@ -20,15 +22,17 @@ def test_pgtap_fixture(pgtap):
 
 def test_pgtap_connection_fixture_override(pytester, database):
     """A conftest that overrides pgtap_connection supplies the connection to all modes."""
-    pytester.makeconftest(f"""
-import psycopg
-import pytest
+    pytester.makeconftest(
+        dedent(f"""
+        import psycopg
+        import pytest
 
-@pytest.fixture(scope='session')
-def pgtap_connection():
-    with psycopg.connect({database.get_connection_url()!r}) as conn:
-        yield conn
-""")
+        @pytest.fixture(scope='session')
+        def pgtap_connection():
+            with psycopg.connect({database.get_connection_url()!r}) as conn:
+                yield conn
+        """)
+    )
     pytester.makefile('.sql', test_sql_file=SQL_TESTS)
     r = pytester.runpytest('-v')
     assert_tap_outcomes(r, failed=2, passed=1)
