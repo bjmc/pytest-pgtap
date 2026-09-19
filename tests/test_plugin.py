@@ -19,6 +19,36 @@ def test_pgtap_fixture(pgtap):
         "select has_column('whatever.contacts', 'name', 'contacts should have a name');")
 """
 
+CMP_OK_FAIL_SQL = """
+BEGIN;
+    SELECT plan(1);
+    SELECT cmp_ok(5, '<', 3, 'five should be less than three');
+    SELECT * FROM finish();
+ROLLBACK;
+"""
+
+ORPHANED_DIAGNOSTIC_SQL = """
+BEGIN;
+    SELECT diag('setup note before any test point');
+    SELECT plan(2);
+    SELECT pass('first test');
+    SELECT fail('second test');
+    SELECT * FROM finish();
+ROLLBACK;
+"""
+
+# fail()/pass() always keep pgTAP's own finish() summary honest, so a real
+# mismatch can only come from a diag() call crafted to look like one -- this
+# fabricates that disagreement to exercise the safety net.
+FAKE_SUMMARY_MISMATCH_SQL = """
+BEGIN;
+    SELECT plan(1);
+    SELECT pass('actually passes');
+    SELECT diag('Looks like you failed 5 tests of 1');
+    SELECT * FROM finish();
+ROLLBACK;
+"""
+
 
 def test_pgtap_connection_fixture_override(pytester, database):
     """A conftest that overrides pgtap_connection supplies the connection to our plugin."""
@@ -85,6 +115,51 @@ def test_bad_postgres_connection(pytester):
     assert result.ret != 0
     output = '\n'.join([*result.stdout.lines, *result.stderr.lines])
     assert 'Unable to connect to Postgres: connection failed' in output
+
+
+def test_cmp_ok_diagnostic_reported_on_failure(pytester, database):
+    """cmp_ok()'s actual/expected diagnostic lines surface in the failure message.
+
+    pgTAP's cmp_ok() emits a `# ...` diagnostic block showing the actual and
+    expected values on failure. TAP diagnostics aren't lexically bound to a
+    test point by the spec, so tap-py's parser returns them as standalone
+    Diagnostic lines rather than attaching them to the Result -- without the
+    plugin applying its own trailing-association convention, it drops them
+    silently.
+    """
+    pytester.makefile('.sql', test_sql_file=CMP_OK_FAIL_SQL)
+    r = pytester.runpytest('-v', '--pgtap-uri', database.get_connection_url())
+    assert_tap_outcomes(r, failed=2)
+    r.stdout.fnmatch_lines(('*5*', '*<*', '*3*'))
+
+
+def test_orphaned_diagnostic_added_to_report_section(pytester, database):
+    """A diag() call with no preceding test point is surfaced, not dropped.
+
+    TAP diagnostics before the first test point (or before plan()) have no
+    Result to attach to. Rather than discard them, they're added as a report
+    section on the item -- the same mechanism pytest uses internally for
+    captured stdout/stderr -- so they show up in the failure output.
+    """
+    pytester.makefile('.sql', test_sql_file=ORPHANED_DIAGNOSTIC_SQL)
+    r = pytester.runpytest('-v', '--pgtap-uri', database.get_connection_url())
+    assert_tap_outcomes(r, failed=2, passed=1)
+    r.stdout.fnmatch_lines(('*pgTAP diagnostics*', '*setup note before any test point*'))
+
+
+def test_summary_mismatch_detected(pytester, database):
+    """A pgTAP run summary that disagrees with our own count fails loudly.
+
+    finish() reports its own failure count independently of how pytest-pgtap
+    parsed the individual results. If they disagree, that's a bug in our TAP
+    parsing -- most dangerously, under-counting failures and reporting green
+    when pgTAP itself says something failed -- so it should fail the run
+    rather than pass silently.
+    """
+    pytester.makefile('.sql', test_sql_file=FAKE_SUMMARY_MISMATCH_SQL)
+    r = pytester.runpytest('-v', '--pgtap-uri', database.get_connection_url())
+    assert r.ret != 0
+    r.stdout.fnmatch_lines(('*points to*a bug in pytest-pgtap*',))
 
 
 def test_no_pgtap_usage_no_connection_warning(pytester, monkeypatch):
