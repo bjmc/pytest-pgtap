@@ -113,7 +113,7 @@ import pytest
 
 
 @pytest.mark.pgtap
-def test_contacts_table():
+def test_contacts_table(migrated_db): # Pytest fixture for db setup
     return [
         "SELECT has_table('public', 'contacts', 'contacts table exists');",
         "SELECT has_column('public', 'contacts', 'name', 'contacts.name exists');",

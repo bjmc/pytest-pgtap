@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **`@pytest.mark.pgtap` tests can take fixture arguments.** Previously a marked test that requested a fixture failed with `pgTAP setup failed: ... missing 1 required positional argument`, after the fixture had already run.
+
 ## 0.3.0 (2026-05-29)
 
 ### Added

@@ -264,7 +264,9 @@ def pytest_runtest_call(item: pytest.Item):
         return
 
     try:
-        sql_lines = _normalize_sql_lines(item.obj())
+        # Pass fixtures the test requested, as pytest's own pytest_pyfunc_call does.
+        funcargs = {name: item.funcargs[name] for name in item._fixtureinfo.argnames}
+        sql_lines = _normalize_sql_lines(item.obj(**funcargs))
         query = cast('Query', wrap_plan(*sql_lines))
         tap_lines = runner.run(query)
         item.obj = lambda **kw: _report_tap(item, tap_lines, item.name)
