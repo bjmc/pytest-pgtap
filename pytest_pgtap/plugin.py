@@ -238,12 +238,24 @@ def pytest_collect_file(parent, file_path):
     return None
 
 
+def _rootdir_node(session: pytest.Session) -> pytest.Collector:
+    """Return the collected node for rootdir, whose conftest fixtures we want, or the session."""
+    rootpath = session.config.rootpath
+    for node in session._collection_cache:
+        if isinstance(node, pytest.Directory) and node.path == rootpath:
+            return node
+    return session
+
+
 def pytest_collection_modifyitems(session, config, items):
     schema = config.getoption('pgtap_schema')
     if schema:
         pattern = config.getoption('pgtap_match')
+        # runtests() tests live in the database rather than in a file, so parent them to
+        # rootdir: that makes fixtures from the root conftest.py (e.g. a pgtap_connection
+        # override) apply to them.
         runtests_item = PgTapRuntestsItem.from_parent(
-            session,
+            _rootdir_node(session),
             name=f'<pgTAP runtests({schema})>',
             schema=schema,
             pattern=pattern,
@@ -331,6 +343,13 @@ class _FixtureItem(pytest.Item):
         self._request = TopRequest(cast(Function, self), _ispytest=True)
         # Run requested fixtures (usefixtures markers, autouse), as Function.setup() does.
         self._request._fillfixtures()
+
+    def getparent(self, cls):
+        # pytest scopes module fixtures to the nearest pytest.Module, which these items
+        # lack; let the SQL file (or the session, for runtests()) stand in for it.
+        if cls is pytest.Module:
+            return self.parent
+        return super().getparent(cls)
 
 
 _MARK_RE = re.compile(r'pytest\.mark\.(\w+)(\(.*\))?')

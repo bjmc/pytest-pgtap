@@ -8,7 +8,8 @@
 
 ### Fixed
 
-- **SQL file and `runtests()` items now run their fixtures.** Fixtures requested with `pytest.mark.usefixtures` and autouse fixtures were previously never set up for these items; they now run before the SQL, as for Python tests.
+- **`runtests()` tests now see fixtures from the root `conftest.py`.** Previously no `conftest.py` fixtures applied in `--pgtap-schema` mode, so a `pgtap_connection` override there was silently ignored. Fixtures in subdirectory `conftest.py` files still don't apply, as these tests aren't files.
+- **SQL file and `runtests()` items now run their fixtures.** Fixtures requested with `pytest.mark.usefixtures` and autouse fixtures were previously never set up for these items; they now run before the SQL, as for Python tests. Module-scoped fixtures treat each SQL file as the module.
 - **`@pytest.mark.pgtap` tests can take fixture arguments.** Previously a marked test that requested a fixture failed with `pgTAP setup failed: ... missing 1 required positional argument`, after the fixture had already run.
 
 ## 0.3.0 (2026-05-29)
