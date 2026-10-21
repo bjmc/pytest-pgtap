@@ -165,10 +165,10 @@ def test_summary_mismatch_detected(pytester, database):
 def test_no_pgtap_usage_no_connection_warning(pytester, monkeypatch):
     monkeypatch.setenv('PGPASSWORD', 'badpassword')
     pytester.makepyfile(
-        test_plain="""
-def test_plain():
-    assert True
-"""
+        test_plain=dedent("""
+            def test_plain():
+                assert True
+        """)
     )
 
     result = pytester.runpytest('-v')

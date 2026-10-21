@@ -90,6 +90,19 @@ Run:
 pytest --pgtap-uri postgresql://user:pass@host:5432/dbname
 ```
 
+To apply pytest markers to a SQL file, write them as comments before the first line of SQL,
+using the same syntax as a decorator:
+
+```sql
+-- pytest.mark.slow
+-- pytest.mark.xfail(reason="known bug", strict=True)
+BEGIN;
+...
+```
+
+Marker arguments must be literals (strings, numbers, booleans, `None`, lists, ...). Markers apply
+to the whole file, as each file is a single pytest item; split a file to mark its tests differently.
+
 ### Mode 2: xUnit `runtests()` mode
 
 Run pgTAP xUnit functions from a schema using pgTAP `runtests()`:
@@ -113,7 +126,7 @@ import pytest
 
 
 @pytest.mark.pgtap
-def test_contacts_table():
+def test_contacts_table(migrated_db): # Pytest fixture for db setup
     return [
         "SELECT has_table('public', 'contacts', 'contacts table exists');",
         "SELECT has_column('public', 'contacts', 'name', 'contacts.name exists');",

@@ -2,9 +2,11 @@
 pgTAP plugin for pytest
 """
 
+import ast
 import logging
 import os
 import re
+from collections.abc import Iterator
 from contextlib import nullcontext
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, NamedTuple, cast
@@ -264,7 +266,9 @@ def pytest_runtest_call(item: pytest.Item):
         return
 
     try:
-        sql_lines = _normalize_sql_lines(item.obj())
+        # Pass fixtures the test requested, as pytest's own pytest_pyfunc_call does.
+        funcargs = {name: item.funcargs[name] for name in item._fixtureinfo.argnames}
+        sql_lines = _normalize_sql_lines(item.obj(**funcargs))
         query = cast('Query', wrap_plan(*sql_lines))
         tap_lines = runner.run(query)
         item.obj = lambda **kw: _report_tap(item, tap_lines, item.name)
@@ -322,12 +326,61 @@ class _FixtureItem(pytest.Item):
 
     def setup(self):
         self._fixtureinfo = self.session._fixturemanager.getfixtureinfo(self, func=None, cls=None)
+        self.fixturenames = self._fixtureinfo.names_closure
+        self.funcargs: dict[str, object] = {}
         self._request = TopRequest(cast(Function, self), _ispytest=True)
+        # Run requested fixtures (usefixtures markers, autouse), as Function.setup() does.
+        self._request._fillfixtures()
+
+
+_MARK_RE = re.compile(r'pytest\.mark\.(\w+)(\(.*\))?')
+
+
+def _parse_mark(text: str) -> pytest.MarkDecorator:
+    """Parse ``pytest.mark.NAME`` or ``pytest.mark.NAME(<literal args>)`` without eval()."""
+    match = _MARK_RE.fullmatch(text)
+    if not match:
+        raise ValueError('expected pytest.mark.NAME or pytest.mark.NAME(...)')
+    name, arglist = match.groups()
+    # ast handles quoting and nesting in the arguments; literal_eval only accepts literals.
+    tree = ast.parse(f'_{arglist or "()"}', mode='eval')
+    compile(tree, '<marker>', 'eval')  # Python's own checks, e.g. repeated keywords; nothing runs.
+    call = tree.body
+    if not (isinstance(call, ast.Call) and isinstance(call.func, ast.Name)):
+        raise ValueError('expected a single argument list')  # noqa: TRY004 - bad input, not type
+    kwargs: dict[str, Any] = {}
+    for kw in call.keywords:
+        if kw.arg is None:
+            raise ValueError('**kwargs are not supported')
+        kwargs[kw.arg] = ast.literal_eval(kw.value)
+    args = [ast.literal_eval(arg) for arg in call.args]
+    return getattr(pytest.mark, name).with_args(*args, **kwargs)
+
+
+def _parse_marks(sql: str, filename: str) -> Iterator[pytest.MarkDecorator]:
+    """Yield markers from ``-- pytest.mark...`` comments before the first line of SQL."""
+    for lineno, line in enumerate(sql.splitlines(), start=1):
+        line = line.strip()
+        if not line:
+            continue
+        if not line.startswith('--'):
+            return
+        text = line.removeprefix('--').strip()
+        if text.startswith('pytest.mark.'):
+            try:
+                yield _parse_mark(text)
+            except (SyntaxError, ValueError) as err:
+                raise pytest.Collector.CollectError(
+                    f'{filename}:{lineno}: invalid marker {text!r}: {err}'
+                ) from err
 
 
 class PgTapFile(pytest.File):
     def collect(self):
-        yield PgTapItem.from_parent(self, name=self.path.name)
+        item = PgTapItem.from_parent(self, name=self.path.name)
+        for mark in _parse_marks(self.path.read_text(), self.path.name):
+            item.add_marker(mark)
+        yield item
 
 
 class PgTapItem(_FixtureItem):
@@ -339,7 +392,7 @@ class PgTapItem(_FixtureItem):
         _report_tap(self, tap_lines, self.path.name)
 
     def reportinfo(self):
-        return self.path, None, self.name
+        return self.path, 0, self.name
 
 
 # ---------------------------------------------------------------------------
