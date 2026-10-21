@@ -102,7 +102,7 @@ def _parse_tap(tap_lines: list[str]) -> ParsedTap:
     return ParsedTap(plan, results, orphaned_diagnostics, summary_failed, summary_total)
 
 
-def _report_tap(item: pytest.Item, tap_lines: list[str], label: str):
+def report_tap(item: pytest.Item, tap_lines: list[str], label: str):
     """Parse TAP output and report each result as a pytest subtest.
 
     Handles bail-out, missing plan, plan-skip, individual results, and
@@ -153,7 +153,7 @@ def _report_tap(item: pytest.Item, tap_lines: list[str], label: str):
         pytest.fail(f'{label} contains failures.', pytrace=False)
 
 
-class _FixtureItem(pytest.Item):
+class FixtureItem(pytest.Item):
     """Mixin that gives a plain pytest.Item access to the fixture machinery.
 
     Normally only pytest.Function items participate in fixture setup. This

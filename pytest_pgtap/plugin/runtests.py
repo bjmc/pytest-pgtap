@@ -3,7 +3,7 @@
 import pytest
 
 from ..pgtap import Runner
-from .core import _FixtureItem, _report_tap
+from .core import FixtureItem, report_tap
 
 
 def _rootdir_node(session: pytest.Session) -> pytest.Collector:
@@ -31,7 +31,7 @@ def pytest_collection_modifyitems(session, config, items):
         items.append(runtests_item)
 
 
-class PgTapRuntestsItem(_FixtureItem):
+class PgTapRuntestsItem(FixtureItem):
     def __init__(self, *, schema: str, pattern: str | None = None, **kwargs):
         super().__init__(**kwargs)
         self.schema = schema
@@ -42,7 +42,7 @@ class PgTapRuntestsItem(_FixtureItem):
         if not isinstance(runner, Runner):
             pytest.skip('pgTAP runtests skipped: no Postgres connection')
         tap_lines = runner.runtests(schema=self.schema, pattern=self.pattern)
-        _report_tap(self, tap_lines, self.name)
+        report_tap(self, tap_lines, self.name)
 
     def reportinfo(self):
         return '<pgtap>', None, self.name

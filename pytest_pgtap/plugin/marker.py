@@ -6,7 +6,7 @@ import psycopg
 import pytest
 
 from ..pgtap import Runner, wrap_plan
-from .core import _report_tap
+from .core import report_tap
 
 if TYPE_CHECKING:
     from psycopg.abc import Query
@@ -44,7 +44,7 @@ def pytest_runtest_call(item: pytest.Item):
         sql_lines = _normalize_sql_lines(item.obj(**funcargs))
         query = cast('Query', wrap_plan(*sql_lines))
         tap_lines = runner.run(query)
-        item.obj = lambda **kw: _report_tap(item, tap_lines, item.name)
+        item.obj = lambda **kw: report_tap(item, tap_lines, item.name)
     except (psycopg.Error, ValueError, TypeError) as err:
         # Capture err by value in default param to avoid scope closure issues
         item.obj = lambda _err=err, **kw: pytest.fail(f'pgTAP setup failed: {_err}')

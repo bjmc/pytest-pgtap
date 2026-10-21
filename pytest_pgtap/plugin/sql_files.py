@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, cast
 import pytest
 
 from ..pgtap import Runner
-from .core import _FixtureItem, _report_tap
+from .core import FixtureItem, report_tap
 
 if TYPE_CHECKING:
     from psycopg.abc import Query
@@ -74,13 +74,13 @@ class PgTapFile(pytest.File):
         yield item
 
 
-class PgTapItem(_FixtureItem):
+class PgTapItem(FixtureItem):
     def runtest(self):
         runner = self._request.getfixturevalue('_pgtap_runner')
         if not isinstance(runner, Runner):
             pytest.skip(f'PgTAP tests {self.path.name} skipped: no Postgres connection')
         tap_lines = runner.run(cast('Query', self.path.read_text()))
-        _report_tap(self, tap_lines, self.path.name)
+        report_tap(self, tap_lines, self.path.name)
 
     def reportinfo(self):
         return self.path, 0, self.name
