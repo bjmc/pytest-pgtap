@@ -74,9 +74,11 @@ dependencies = [
   "testcontainers[postgres]",
 ]
 scripts.run = "pytest tests/ -v {args}"
+# Name environments like test.py3.13-pytest9-pg18
+matrix-name-format = "{variable}{value}"
 
 [tool.hatch.envs.test.overrides]
-matrix.pytest_ver.dependencies = [
+matrix.pytest.dependencies = [
   { value = "pytest>=8.4,<9", if = ["8"] },
   { value = "pytest-subtests>=0.15.0", if = ["8"] },
   { value = "pytest>=9,<10", if = ["9"] },
@@ -88,7 +90,7 @@ matrix.pg.env-vars = [
 
 [[tool.hatch.envs.test.matrix]]
 python = ["3.10", "3.11", "3.12", "3.13", "3.14"]
-pytest_ver = ["8", "9"]
+pytest = ["8", "9"]
 pg = ["17", "18"]
 
 [project.urls]
