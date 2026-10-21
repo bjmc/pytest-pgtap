@@ -91,8 +91,8 @@ Run:
 pytest --pgtap-uri postgresql://user:pass@host:5432/dbname
 ```
 
-To apply pytest markers to a SQL file, write them as comments before the first line of SQL,
-using the same syntax as a decorator:
+To apply [pytest marks](https://docs.pytest.org/en/9.0.x/how-to/mark.html) to a SQL file,
+write them as comments before the first line of SQL, using the same syntax as a decorator:
 
 ```sql
 -- pytest.mark.slow
@@ -101,8 +101,7 @@ BEGIN;
 ...
 ```
 
-Marker arguments must be literals (strings, numbers, booleans, `None`, lists, ...). Markers apply
-to the whole file, as each file is a single pytest item; split a file to mark its tests differently.
+Markers apply to the whole file.
 
 ### Mode 2: xUnit `runtests()` mode
 

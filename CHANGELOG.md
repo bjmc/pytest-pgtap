@@ -2,9 +2,15 @@
 
 ## Unreleased
 
+## 0.4.0 (2026-10-21)
+
 ### Added
 
-- **pytest markers on SQL file tests.** `-- pytest.mark.NAME` and `-- pytest.mark.NAME(...)` comments before the first line of SQL apply markers to that file's test, so `-m`, `skip` and `xfail` work for SQL files. See the README.
+- **pytest markers on SQL file tests.** `-- pytest.mark.NAME` and `-- pytest.mark.NAME(...)` comments before the first line of SQL apply markers to that file's test, so `-m`, `skip` and `xfail` work for SQL files.
+
+### Changed
+
+-- **Dropped support for Python 3.10 (EOL), added Python 3.15**. Python 3.10 is end-of-life as of Oct 2026 and Python 3.15 is the new kid in school.
 
 ### Fixed
 
