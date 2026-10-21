@@ -107,6 +107,7 @@ testpaths = ["tests"]
 allowed-unresolved-imports = ["pytest_subtests"]
 
 [tool.ruff]
+target-version = "py311"
 line-length = 100
 indent-width = 4
 

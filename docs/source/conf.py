@@ -1,8 +1,7 @@
 # pytest-pgtap documentation build configuration
 
+import tomllib
 from pathlib import Path
-
-import tomllib  # ty: ignore[unresolved-import]
 
 PYPROJECT_FILE = Path(__file__).parents[2] / 'pyproject.toml'
 with PYPROJECT_FILE.open('rb') as f:
