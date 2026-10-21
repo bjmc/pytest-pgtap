@@ -2,6 +2,7 @@
 pgTAP plugin for pytest
 """
 
+import ast
 import logging
 import os
 import re
@@ -327,9 +328,47 @@ class _FixtureItem(pytest.Item):
         self._request = TopRequest(cast(Function, self), _ispytest=True)
 
 
+_MARK_RE = re.compile(r'pytest\.mark\.(\w+)(\(.*\))?')
+
+
+def _parse_mark(text: str) -> pytest.MarkDecorator:
+    """Parse ``pytest.mark.NAME`` or ``pytest.mark.NAME(<literal args>)`` without eval()."""
+    match = _MARK_RE.fullmatch(text)
+    if not match:
+        raise ValueError('expected pytest.mark.NAME or pytest.mark.NAME(...)')
+    name, arglist = match.groups()
+    # ast handles quoting and nesting in the arguments; literal_eval only accepts literals.
+    call = ast.parse(f'_{arglist or "()"}', mode='eval').body
+    if not (isinstance(call, ast.Call) and isinstance(call.func, ast.Name)):
+        raise ValueError('expected a single argument list')  # noqa: TRY004 - bad input, not type
+    kwargs: dict[str, Any] = {}
+    for kw in call.keywords:
+        if kw.arg is None:
+            raise ValueError('**kwargs are not supported')
+        kwargs[kw.arg] = ast.literal_eval(kw.value)
+    args = [ast.literal_eval(arg) for arg in call.args]
+    return getattr(pytest.mark, name).with_args(*args, **kwargs)
+
+
 class PgTapFile(pytest.File):
     def collect(self):
-        yield PgTapItem.from_parent(self, name=self.path.name)
+        item = PgTapItem.from_parent(self, name=self.path.name)
+        # Markers come from `-- pytest.mark...` comments before the first line of SQL.
+        for lineno, line in enumerate(self.path.read_text().splitlines(), start=1):
+            line = line.strip()
+            if not line:
+                continue
+            if not line.startswith('--'):
+                break
+            text = line.removeprefix('--').strip()
+            if text.startswith('pytest.mark.'):
+                try:
+                    item.add_marker(_parse_mark(text))
+                except (SyntaxError, ValueError) as err:
+                    raise self.CollectError(
+                        f'{self.path.name}:{lineno}: invalid marker {text!r}: {err}'
+                    ) from err
+        yield item
 
 
 class PgTapItem(_FixtureItem):
@@ -341,7 +380,7 @@ class PgTapItem(_FixtureItem):
         _report_tap(self, tap_lines, self.path.name)
 
     def reportinfo(self):
-        return self.path, None, self.name
+        return self.path, 0, self.name
 
 
 # ---------------------------------------------------------------------------
