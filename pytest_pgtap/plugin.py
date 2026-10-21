@@ -6,6 +6,7 @@ import ast
 import logging
 import os
 import re
+from collections.abc import Iterator
 from contextlib import nullcontext
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, NamedTuple, cast
@@ -350,24 +351,29 @@ def _parse_mark(text: str) -> pytest.MarkDecorator:
     return getattr(pytest.mark, name).with_args(*args, **kwargs)
 
 
+def _parse_marks(sql: str, filename: str) -> Iterator[pytest.MarkDecorator]:
+    """Yield markers from ``-- pytest.mark...`` comments before the first line of SQL."""
+    for lineno, line in enumerate(sql.splitlines(), start=1):
+        line = line.strip()
+        if not line:
+            continue
+        if not line.startswith('--'):
+            return
+        text = line.removeprefix('--').strip()
+        if text.startswith('pytest.mark.'):
+            try:
+                yield _parse_mark(text)
+            except (SyntaxError, ValueError) as err:
+                raise pytest.Collector.CollectError(
+                    f'{filename}:{lineno}: invalid marker {text!r}: {err}'
+                ) from err
+
+
 class PgTapFile(pytest.File):
     def collect(self):
         item = PgTapItem.from_parent(self, name=self.path.name)
-        # Markers come from `-- pytest.mark...` comments before the first line of SQL.
-        for lineno, line in enumerate(self.path.read_text().splitlines(), start=1):
-            line = line.strip()
-            if not line:
-                continue
-            if not line.startswith('--'):
-                break
-            text = line.removeprefix('--').strip()
-            if text.startswith('pytest.mark.'):
-                try:
-                    item.add_marker(_parse_mark(text))
-                except (SyntaxError, ValueError) as err:
-                    raise self.CollectError(
-                        f'{self.path.name}:{lineno}: invalid marker {text!r}: {err}'
-                    ) from err
+        for mark in _parse_marks(self.path.read_text(), self.path.name):
+            item.add_marker(mark)
         yield item
 
 
