@@ -23,7 +23,7 @@ pytest-pgtap provides three entry points into the pgTAP test framework. It is de
 
 ## Requirements
 
-- Python 3.10+
+- Python 3.11+
 - pytest
 - PostgreSQL
 - pgTAP extension installed in the target database
