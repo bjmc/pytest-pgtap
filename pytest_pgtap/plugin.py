@@ -326,7 +326,11 @@ class _FixtureItem(pytest.Item):
 
     def setup(self):
         self._fixtureinfo = self.session._fixturemanager.getfixtureinfo(self, func=None, cls=None)
+        self.fixturenames = self._fixtureinfo.names_closure
+        self.funcargs: dict[str, object] = {}
         self._request = TopRequest(cast(Function, self), _ispytest=True)
+        # Run requested fixtures (usefixtures markers, autouse), as Function.setup() does.
+        self._request._fillfixtures()
 
 
 _MARK_RE = re.compile(r'pytest\.mark\.(\w+)(\(.*\))?')
@@ -339,7 +343,9 @@ def _parse_mark(text: str) -> pytest.MarkDecorator:
         raise ValueError('expected pytest.mark.NAME or pytest.mark.NAME(...)')
     name, arglist = match.groups()
     # ast handles quoting and nesting in the arguments; literal_eval only accepts literals.
-    call = ast.parse(f'_{arglist or "()"}', mode='eval').body
+    tree = ast.parse(f'_{arglist or "()"}', mode='eval')
+    compile(tree, '<marker>', 'eval')  # Python's own checks, e.g. repeated keywords; nothing runs.
+    call = tree.body
     if not (isinstance(call, ast.Call) and isinstance(call.func, ast.Name)):
         raise ValueError('expected a single argument list')  # noqa: TRY004 - bad input, not type
     kwargs: dict[str, Any] = {}

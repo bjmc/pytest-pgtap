@@ -1,5 +1,9 @@
 # Tests for `-- pytest.mark...` comments on SQL file tests
 
+from textwrap import dedent
+
+import pytest
+
 pytest_plugins = ['pytester']
 
 PASSING_SQL = """
@@ -56,8 +60,41 @@ def test_marker_comment_after_sql_is_ignored(pytester, database):
     result.assert_outcomes(passed=1)
 
 
-def test_invalid_marker_is_a_collection_error(pytester, database):
-    pytester.makefile('.sql', test_bad='-- pytest.mark.skip(reason=open("x"))\n' + PASSING_SQL)
+@pytest.mark.parametrize(
+    'marker',
+    [
+        'pytest.mark.skip(reason=open("x"))',
+        'pytest.mark.xfail(strict=True, strict=False)',
+    ],
+)
+def test_invalid_marker_is_a_collection_error(pytester, database, marker):
+    pytester.makefile('.sql', test_bad=f'-- {marker}\n' + PASSING_SQL)
     result = _run(pytester, database)
     result.assert_outcomes(errors=1)
     result.stdout.fnmatch_lines(['*test_bad.sql:1: invalid marker*'])
+
+
+def test_usefixtures_marker_runs_fixture_before_sql(pytester, database):
+    pytester.makeconftest(
+        """
+        import pytest
+
+        @pytest.fixture
+        def tagged_session(pgtap_connection):
+            with pgtap_connection.transaction():
+                pgtap_connection.execute(
+                    "SELECT set_config('application_name', 'fixture_ran', false)"
+                )
+        """
+    )
+    sql = dedent("""
+        -- pytest.mark.usefixtures("tagged_session")
+        BEGIN;
+            SELECT plan(1);
+            SELECT is(current_setting('application_name'), 'fixture_ran', 'fixture ran first');
+            SELECT * FROM finish();
+        ROLLBACK;
+    """)
+    pytester.makefile('.sql', test_fixture=sql)
+    result = _run(pytester, database)
+    result.assert_outcomes(passed=1)
