@@ -98,3 +98,20 @@ def test_usefixtures_marker_runs_fixture_before_sql(pytester, database):
     pytester.makefile('.sql', test_fixture=sql)
     result = _run(pytester, database)
     result.assert_outcomes(passed=1)
+
+
+MODULE_FIXTURE_CONFTEST = """
+    import pytest
+
+    @pytest.fixture(scope='module', autouse=True)
+    def module_setup():
+        print('MODULE FIXTURE RAN')
+"""
+
+
+def test_module_scoped_fixture_runs_for_sql_file(pytester, database):
+    pytester.makeconftest(MODULE_FIXTURE_CONFTEST)
+    pytester.makefile('.sql', test_module=PASSING_SQL)
+    result = _run(pytester, database, '-s')
+    result.assert_outcomes(passed=1)
+    result.stdout.fnmatch_lines(['*MODULE FIXTURE RAN*'])

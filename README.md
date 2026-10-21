@@ -117,6 +117,11 @@ Optional regex function filter:
 pytest --pgtap-uri postgresql://user:pass@host:5432/dbname --pgtap-schema mytests --pgtap-match '^test_'
 ```
 
+These tests live in the database rather than in a file, so they belong to pytest's rootdir:
+fixtures from the `conftest.py` there apply to them, but those from `conftest.py` files in
+subdirectories do not. A root `pgtap_connection` override can depend on other fixtures, for
+example one that installs the test functions before `runtests()` is called.
+
 ### Mode 3: Inline Python marker mode
 
 Use `@pytest.mark.pgtap` on a Python test function that returns SQL assertions:
