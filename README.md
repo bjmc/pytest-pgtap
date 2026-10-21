@@ -63,6 +63,7 @@ pytest --pgtap-uri postgresql://user:pass@host:5432/dbname
 import pytest
 import psycopg
 
+
 @pytest.fixture(scope='session')
 def pgtap_connection(postgres):  # postgres is your own session-scoped fixture
     with psycopg.connect(postgres.get_connection_url()) as conn:
@@ -129,7 +130,7 @@ import pytest
 
 
 @pytest.mark.pgtap
-def test_contacts_table(migrated_db): # Pytest fixture for db setup
+def test_contacts_table(migrated_db):  # Pytest fixture for db setup
     return [
         "SELECT has_table('public', 'contacts', 'contacts table exists');",
         "SELECT has_column('public', 'contacts', 'name', 'contacts.name exists');",
