@@ -117,10 +117,8 @@ Optional regex function filter:
 pytest --pgtap-uri postgresql://user:pass@host:5432/dbname --pgtap-schema mytests --pgtap-match '^test_'
 ```
 
-These tests live in the database rather than in a file, so they belong to pytest's rootdir:
-fixtures from the `conftest.py` there apply to them, but those from `conftest.py` files in
-subdirectories do not. A root `pgtap_connection` override can depend on other fixtures, for
-example one that installs the test functions before `runtests()` is called.
+Note: These tests live in the database rather than in a file, so only fixtures
+defined in the root `conftest.py` are evaluated.
 
 ### Mode 3: Inline Python marker mode
 
@@ -159,10 +157,12 @@ hatch run docs:build
 
 Similar to `tox`, Hatch supports multi-version [matrix testing](https://hatch.pypa.io/1.13/config/environment/advanced/#matrix) so we can verify this library works across different versions of Python, Pytest and Postgres.
 
+
 ```bash
 hatch run test:run  # run all combinations
-hatch -e test.py3.13-pytest9-pg18 run  # single combination
-hatch run test:run -- -x  # pass extra args to pytest
+hatch run test.py3.13-pytest9-pg18:run  # single combination
+hatch run test.py3.13-pytest9-pg18:run -x  # pass extra args to pytest
+hatch env show test  # list combinations
 ```
 
 The test suite uses [testcontainers](https://testcontainers-python.readthedocs.io/) to spin up Postgres. You'll need [Docker](https://www.docker.com) or some other [OCI runtime](https://github.com/opencontainers/runtime-spec).
